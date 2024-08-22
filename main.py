@@ -1,11 +1,11 @@
+import customtkinter as ctk
 import tkinter as tk
-from tkinter import filedialog
-from tkinter import ttk
 from PIL import Image, ImageTk
+from tkinter import filedialog
 import numpy as np
 from skimage import io, util, color, img_as_ubyte
-import math
-import heapq
+import math, heapq
+import tkinter as tk
 
 def randomPatch(texture, patchSize):
     h, w = texture.shape[:2]
@@ -121,155 +121,202 @@ def transfer(texture, target, patchSize, overlap, alpha):
             output[y:y+patchSize, x:x+patchSize] = patch
     return output
 
-class TextureApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Texture Synthesis and Transfer")
+class TextureApp(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+
+        self.title("Texture Synthesis and Transfer")
+        self.geometry("900x600")
 
         self.texture = None
         self.target = None
 
-        # Configure styles
-        style = ttk.Style()
-        style.configure('TButton', font=('Helvetica', 20), padding=10)
-        style.configure('TLabel', font=('Helvetica', 20))
-        style.configure('TEntry', font=('Helvetica', 20))
-        style.theme_use('clam')
+        # set grid layout 1x2
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
 
-        # Create Notebook (tabs)
-        self.notebook = ttk.Notebook(root)
-        self.notebook.pack(expand=1, fill='both')
+        # load images with light and dark mode image
+        self.logo_image = ctk.CTkImage(Image.open("documentation_images/CustomTkinter_logo_dark.png"), size=(26, 26))
 
-        # Create frames for each tab
-        self.synthesis_frame = ttk.Frame(self.notebook)
-        self.transfer_frame = ttk.Frame(self.notebook)
+        # create navigation frame
+        self.navigation_frame = ctk.CTkFrame(self, corner_radius=0)
+        self.navigation_frame.grid(row=0, column=0, sticky="nsew")
+        self.navigation_frame.grid_rowconfigure(5, weight=1)  # Adjust row configuration
 
-        self.notebook.add(self.synthesis_frame, text='Synthesis')
-        self.notebook.add(self.transfer_frame, text='Transfer')
+        # Add other elements below the tab view
+        self.navigation_frame_label = ctk.CTkLabel(self.navigation_frame, text="  Texture Transfer", image=self.logo_image,
+                                                            compound="left", font=ctk.CTkFont(size=15, weight="bold"))
+        self.navigation_frame_label.grid(row=0, column=0, padx=20, pady=20)
 
-        # Synthesis tab with sub-tabs for methods
-        self.synthesis_notebook = ttk.Notebook(self.synthesis_frame)
-        self.synthesis_notebook.pack(expand=1, fill='both')
+        # Create tab buttons frame
+        self.seg_button = ctk.CTkSegmentedButton(self.navigation_frame)
+        self.seg_button.grid(row=1, column=0, padx=20, pady=20, sticky="ew")
+        self.seg_button.configure(values=["Synthesis", "Transfer"], command=self.on_segment_change)
+        self.seg_button.set("Synthesis")
 
-        self.method1_frame = ttk.Frame(self.synthesis_notebook)
-        self.method2_frame = ttk.Frame(self.synthesis_notebook)
-        self.method3_frame = ttk.Frame(self.synthesis_notebook)
+        # Add method buttons
+        for i, (ref, command) in enumerate({"method1_button": self.method1_button_event,"method2_button": self.method2_button_event,"method3_button": self.method3_button_event}.items(), start=1):
+            button = ctk.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text=f"Method {i}", fg_color="transparent",text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"), anchor="w", command=command)
+            button.grid(row=i + 1, column=0, sticky="ew")
+            setattr(self, ref, button)
 
-        self.synthesis_notebook.add(self.method1_frame, text='Method 1')
-        self.synthesis_notebook.add(self.method2_frame, text='Method 2')
-        self.synthesis_notebook.add(self.method3_frame, text='Method 3')
+        # Add appearance mode menu
+        self.appearance_mode_menu = ctk.CTkOptionMenu(self.navigation_frame, values=["Light", "Dark", "System"], command=self.change_appearance_mode_event)
+        self.appearance_mode_menu.grid(row=6, column=0, padx=20, pady=20, sticky="s")
 
-        # Method 1 tab
-        self.load_texture_btn = ttk.Button(self.method1_frame, text="Load Texture", command=self.load_texture)
-        self.load_texture_btn.pack()
+        # create frames for each section
+        self.method_frame = self.create_method_frame()
 
-        self.patch_size_label = ttk.Label(self.method1_frame, text="Patch Size:")
-        self.patch_size_label.pack()
-        self.patch_size_entry = ttk.Entry(self.method1_frame)
-        self.patch_size_entry.pack()
+        # select default frame
+        self.select_frame_by_name("method1")
 
-        self.method1_btn = ttk.Button(self.method1_frame, text="Run Method 1", command=self.run_method1)
-        self.method1_btn.pack()
+    def create_method_frame(self):
+        scrollable_frame = ctk.CTkScrollableFrame(self, corner_radius=0, fg_color="transparent")
+        scrollable_frame.grid(row=0, column=1, sticky="nsew")
+        frame = ctk.CTkFrame(scrollable_frame, fg_color="transparent")
+        frame.grid(row=0, column=0, sticky="n")
 
-        # Method 2 tab
-        self.load_texture_btn2 = ttk.Button(self.method2_frame, text="Load Texture", command=self.load_texture)
-        self.load_texture_btn2.pack()
+        # Centre the widgets
+        frame.columnconfigure(0, weight=1)
+        frame.columnconfigure(1, weight=1)
+        frame.columnconfigure(2, weight=1)
 
-        self.patch_size_label2 = ttk.Label(self.method2_frame, text="Patch Size:")
-        self.patch_size_label2.pack()
-        self.patch_size_entry2 = ttk.Entry(self.method2_frame)
-        self.patch_size_entry2.pack()
+        # Images
+        self.image_texture = ctk.CTkLabel(frame, text="Texture Image", width=200, height=100)
+        self.image_texture.grid(row=0, column=0, padx=20, pady=10)
+        self.load_texture_button = ctk.CTkButton(frame, text="Load Texture", command=self.load_texture)
+        self.load_texture_button.grid(row=1, column=0, padx=20, pady=10)
 
-        self.overlap_size_label2 = ttk.Label(self.method2_frame, text="Overlap Size:")
-        self.overlap_size_label2.pack()
-        self.overlap_size_entry2 = ttk.Entry(self.method2_frame)
-        self.overlap_size_entry2.pack()
+        self.image_target = ctk.CTkLabel(frame, text="Target Image", width=200, height=100)
+        self.image_target.grid(row=0, column=1, padx=20, pady=10)
+        self.load_target_button = ctk.CTkButton(frame, text="Load Target", command=self.load_target)
+        self.load_target_button.grid(row=1, column=1, padx=20, pady=10)
 
-        self.method2_btn = ttk.Button(self.method2_frame, text="Run Method 2", command=self.run_method2)
-        self.method2_btn.pack()
+        # Inputs
+        self.patch_size_label = ctk.CTkLabel(frame, text="Patch Size")
+        self.patch_size_label.grid(row=2, column=0, padx=20, pady=(10, 0))
+        self.patch_size_entry = ctk.CTkEntry(frame)
+        self.patch_size_entry.grid(row=3, column=0, padx=20, pady=(0, 10))
 
-        # Method 3 tab
-        self.load_texture_btn3 = ttk.Button(self.method3_frame, text="Load Texture", command=self.load_texture)
-        self.load_texture_btn3.pack()
+        self.overlap_size_label = ctk.CTkLabel(frame, text="Overlap Size")
+        self.overlap_size_label.grid(row=2, column=1, padx=20, pady=(10, 0))
+        self.overlap_size_entry = ctk.CTkEntry(frame)
+        self.overlap_size_entry.grid(row=3, column=1, padx=20, pady=(0, 10))
 
-        self.patch_size_label3 = ttk.Label(self.method3_frame, text="Patch Size:")
-        self.patch_size_label3.pack()
-        self.patch_size_entry3 = ttk.Entry(self.method3_frame)
-        self.patch_size_entry3.pack()
+        self.alpha_label = ctk.CTkLabel(frame, text="Alpha")
+        self.alpha_label.grid(row=2, column=2, padx=20, pady=(10, 0))
+        self.alpha_entry = ctk.CTkEntry(frame)
+        self.alpha_entry.grid(row=3, column=2, padx=20, pady=(0, 10))
 
-        self.overlap_size_label3 = ttk.Label(self.method3_frame, text="Overlap Size:")
-        self.overlap_size_label3.pack()
-        self.overlap_size_entry3 = ttk.Entry(self.method3_frame)
-        self.overlap_size_entry3.pack()
+        # Button and Load
+        self.go_button = ctk.CTkButton(frame)
+        self.go_button.grid(row=6, column=1, pady=10)
 
-        self.method3_btn = ttk.Button(self.method3_frame, text="Run Method 3", command=self.run_method3)
-        self.method3_btn.pack()
+        # Display Image
+        self.image_output = ctk.CTkLabel(frame, text="Output Image", width=200, height=100)
+        self.image_output.grid(row=7, column=1, padx=20, pady=10)
 
-        # Transfer tab
-        self.load_texture_btn_transfer = ttk.Button(self.transfer_frame, text="Load Texture", command=self.load_texture)
-        self.load_texture_btn_transfer.pack()
+        for entry_name, entry in [("patch_size_entry", self.patch_size_entry), ("overlap_size_entry", self.overlap_size_entry), ("alpha_entry", self.alpha_entry)]:
+            setattr(scrollable_frame, entry_name, entry)
 
-        self.load_target_btn = ttk.Button(self.transfer_frame, text="Load Target", command=self.load_target)
-        self.load_target_btn.pack()
+        return scrollable_frame
 
-        self.patch_size_label_transfer = ttk.Label(self.transfer_frame, text="Patch Size:")
-        self.patch_size_label_transfer.pack()
-        self.patch_size_entry_transfer = ttk.Entry(self.transfer_frame)
-        self.patch_size_entry_transfer.pack()
+    def select_frame_by_name(self, name):
+        buttons = [self.method1_button, self.method2_button, self.method3_button]
+        methods = {
+            "method1": self.run_method1,
+            "method2": self.run_method2,
+            "method3": self.run_method3,
+            "transfer": self.run_transfer
+        }
 
-        self.overlap_size_label_transfer = ttk.Label(self.transfer_frame, text="Overlap Size:")
-        self.overlap_size_label_transfer.pack()
-        self.overlap_size_entry_transfer = ttk.Entry(self.transfer_frame)
-        self.overlap_size_entry_transfer.pack()
+        # Update button colors
+        for i, button in enumerate(buttons, start=1):
+            button.configure(fg_color=("gray75", "gray25") if f"method{i}" == name else "transparent")
 
-        self.alpha_label = ttk.Label(self.transfer_frame, text="Alpha:")
-        self.alpha_label.pack()
-        self.alpha_entry = ttk.Entry(self.transfer_frame)
-        self.alpha_entry.pack()
+        # Update frame content based on the selected method
+        if name in ["method1", "method2", "method3"]:
+            self.method_frame.grid(row=0, column=1, sticky="nsew")
 
-        self.transfer_btn = ttk.Button(self.transfer_frame, text="Transfer", command=self.run_transfer)
-        self.transfer_btn.pack()
+            if name == "method1":
+                self.overlap_size_label.grid_forget()
+                self.overlap_size_entry.grid_forget()
+            else:
+                self.overlap_size_label.grid(row=4, column=0, padx=20, pady=(10, 0))
+                self.overlap_size_entry.grid(row=5, column=0, padx=20, pady=(0, 10))
+            self.go_button.configure(command=methods[name], text="Synthesise")
+        else:
+            self.method_frame.grid_forget()
+            self.go_button.configure(command=methods[name], text="Transfer")
 
-        # Canvas to display output
-        self.canvas = tk.Canvas(root, width=500, height=500)
-        self.canvas.pack()
+    def on_segment_change(self, value):
+        if value == "Synthesis":
+            self.method1_button.grid()
+            self.method2_button.grid()
+            self.method3_button.grid()
+            self.select_frame_by_name("method1")
+        elif value == "Transfer":
+            self.method1_button.grid_remove()
+            self.method2_button.grid_remove()
+            self.method3_button.grid_remove()
+            self.select_frame_by_name("transfer")
+    
+    def method1_button_event(self):
+        self.select_frame_by_name("method1")
+
+    def method2_button_event(self):
+        self.select_frame_by_name("method2")
+
+    def method3_button_event(self):
+        self.select_frame_by_name("method3")
+
+    def change_appearance_mode_event(self, new_appearance_mode):
+        ctk.set_appearance_mode(new_appearance_mode)
 
     def load_texture(self):
         file_path = filedialog.askopenfilename()
         if not file_path:
             return
         self.texture = io.imread(file_path)
-        self.display_image(self.texture)
+        self.display_image(self.texture, self.image_texture)
 
     def load_target(self):
         file_path = filedialog.askopenfilename()
         if not file_path:
             return
         self.target = io.imread(file_path)
-        self.display_image(self.target)
+        self.display_image(self.target, self.image_target)
 
-    def display_image(self, image):
-        image = ImageTk.PhotoImage(Image.fromarray(img_as_ubyte(image)))
-        self.canvas.create_image(0, 0, anchor=tk.NW, image=image)
-        self.canvas.image = image
+    def display_image(self, image, label):
+        image = Image.fromarray(img_as_ubyte(image))
+        ctk_image = ctk.CTkImage(light_image=image, dark_image=image, size=image.size)
+        label.configure(image=ctk_image, text="")
+        label.image = ctk_image
 
     def run_method1(self):
-        output = general_method(self.texture, int(self.patch_size_entry.get()), None, randomPatch)
-        self.display_image(output)
+        if not self.texture or not self.method_frame.patch_size_entry.get():
+            self.image_output.configure(text="Please load texture, and enter patch size")
+        output = general_method(self.texture, int(self.method_frame.patch_size_entry.get()), None, randomPatch)
+        self.display_image(output, self.image_output)
 
     def run_method2(self):
-        output = general_method(self.texture, int(self.patch_size_entry2.get()), int(self.overlap_size_entry2.get()), bestPatchSelection)
-        self.display_image(output)
+        if not self.texture or not self.method_frame.patch_size_entry.get() or not self.method_frame.overlap_size_entry.get():
+            self.image_output.configure(text="Please load texture, and enter patch size and overlap size")
+        output = general_method(self.texture, int(self.method2_frame.patch_size_entry.get()), int(self.method2_frame.overlap_size_entry.get()), bestPatchSelection)
+        self.display_image(output, self.image_output)
 
     def run_method3(self):
-        output = general_method(self.texture, int(self.patch_size_entry3.get()), int(self.overlap_size_entry3.get()), cutPatchSelection)
-        self.display_image(output)
+        if not self.texture or not self.method_frame.patch_size_entry.get() or not self.method_frame.overlap_size_entry.get():
+            self.image_output.configure(text="Please load texture, and enter patch size and overlap size")
+        output = general_method(self.texture, int(self.method3_frame.patch_size_entry.get()), int(self.method3_frame.overlap_size_entry.get()), cutPatchSelection)
+        self.display_image(output, self.image_output)
 
     def run_transfer(self):
-        output = transfer(self.texture, self.target, int(self.patch_size_entry_transfer.get()), int(self.overlap_size_entry_transfer.get()), float(self.alpha_entry.get()))
-        self.display_image(output)
+        if not self.texture or not self.target or not self.method_frame.patch_size_entry.get() or not self.method_frame.overlap_size_entry.get() or not self.method_frame.alpha_entry.get():
+            self.image_output.configure(text="Please load texture and target, and enter patch size, overlap size and alpha")
+        output = transfer(self.texture, self.target, int(self.method_frame.patch_size_entry.get()), int(self.method_frame.overlap_size_entry.get()), float(self.method_frame.alpha_entry.get()))
+        self.display_image(output, self.image_output)
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = TextureApp(root)
-    root.mainloop()
+    app = TextureApp()
+    app.mainloop()

@@ -188,9 +188,7 @@ class TextureApp(ctk.CTk):
         self.load_texture_button.grid(row=1, column=0, padx=20, pady=10)
 
         self.image_target = ctk.CTkLabel(frame, text="Target Image", width=200, height=100)
-        self.image_target.grid(row=0, column=1, padx=20, pady=10)
         self.load_target_button = ctk.CTkButton(frame, text="Load Target", command=self.load_target)
-        self.load_target_button.grid(row=1, column=1, padx=20, pady=10)
 
         # Inputs
         self.patch_size_label = ctk.CTkLabel(frame, text="Patch Size")
@@ -199,22 +197,21 @@ class TextureApp(ctk.CTk):
         self.patch_size_entry.grid(row=3, column=0, padx=20, pady=(0, 10))
 
         self.overlap_size_label = ctk.CTkLabel(frame, text="Overlap Size")
-        self.overlap_size_label.grid(row=2, column=1, padx=20, pady=(10, 0))
         self.overlap_size_entry = ctk.CTkEntry(frame)
-        self.overlap_size_entry.grid(row=3, column=1, padx=20, pady=(0, 10))
 
         self.alpha_label = ctk.CTkLabel(frame, text="Alpha")
-        self.alpha_label.grid(row=2, column=2, padx=20, pady=(10, 0))
         self.alpha_entry = ctk.CTkEntry(frame)
-        self.alpha_entry.grid(row=3, column=2, padx=20, pady=(0, 10))
 
         # Button and Load
         self.go_button = ctk.CTkButton(frame)
         self.go_button.grid(row=6, column=1, pady=10)
+        self.progressbar = ctk.CTkProgressBar(frame)
+        self.progressbar.set(0)
+        self.progressbar.grid(row=7, column=1, pady=(10, 10), sticky="ew")
 
         # Display Image
         self.image_output = ctk.CTkLabel(frame, text="Output Image", width=200, height=100)
-        self.image_output.grid(row=7, column=1, padx=20, pady=10)
+        self.image_output.grid(row=8, column=1, padx=20, pady=10)
 
         for entry_name, entry in [("patch_size_entry", self.patch_size_entry), ("overlap_size_entry", self.overlap_size_entry), ("alpha_entry", self.alpha_entry)]:
             setattr(scrollable_frame, entry_name, entry)
@@ -223,32 +220,45 @@ class TextureApp(ctk.CTk):
 
     def select_frame_by_name(self, name):
         buttons = [self.method1_button, self.method2_button, self.method3_button]
-        methods = {
-            "method1": self.run_method1,
-            "method2": self.run_method2,
-            "method3": self.run_method3,
-            "transfer": self.run_transfer
-        }
+        methods = {"method1": self.run_method1, "method2": self.run_method2, "method3": self.run_method3, "transfer": self.run_transfer}
 
         # Update button colors
         for i, button in enumerate(buttons, start=1):
             button.configure(fg_color=("gray75", "gray25") if f"method{i}" == name else "transparent")
 
-        # Update frame content based on the selected method
-        if name in ["method1", "method2", "method3"]:
-            self.method_frame.grid(row=0, column=1, sticky="nsew")
+        # Hide all widgets initially
+        all_widgets = [
+            self.image_target,
+            self.load_target_button,
+            self.overlap_size_label,
+            self.overlap_size_entry,
+            self.alpha_label,
+            self.alpha_entry
+        ]
+        for widget in all_widgets:
+            widget.grid_forget()
 
-            if name == "method1":
-                self.overlap_size_label.grid_forget()
-                self.overlap_size_entry.grid_forget()
-            else:
-                self.overlap_size_label.grid(row=4, column=0, padx=20, pady=(10, 0))
-                self.overlap_size_entry.grid(row=5, column=0, padx=20, pady=(0, 10))
-            self.go_button.configure(command=methods[name], text="Synthesise")
-        else:
-            self.method_frame.grid_forget()
+        method2_widgets = [
+            (self.overlap_size_label, {"row": 2, "column": 1, "padx": 20, "pady": (10, 0)}),
+            (self.overlap_size_entry, {"row": 3, "column": 1, "padx": 20, "pady": (0, 10)})
+        ]
+        transfer_widgets = [
+            (self.image_target, {"row": 0, "column": 1, "padx": 20, "pady": 10}),
+            (self.load_target_button, {"row": 1, "column": 1, "padx": 20, "pady": 10}),
+            (self.alpha_label, {"row": 2, "column": 2, "padx": 20, "pady": (10, 0)}),
+            (self.alpha_entry, {"row": 3, "column": 2, "padx": 20, "pady": (0, 10)})
+        ]
+
+        # Show method-specific widgets
+        self.go_button.configure(command=methods[name], text="Synthesise")
+        if name == "method2" or name == "method3":
+            for widget, grid_options in method2_widgets:
+                widget.grid(**grid_options)
+        elif name == "transfer":
             self.go_button.configure(command=methods[name], text="Transfer")
-
+            for widget, grid_options in (method2_widgets+transfer_widgets):
+                widget.grid(**grid_options)
+    
     def on_segment_change(self, value):
         if value == "Synthesis":
             self.method1_button.grid()
@@ -288,34 +298,60 @@ class TextureApp(ctk.CTk):
         self.display_image(self.target, self.image_target)
 
     def display_image(self, image, label):
+        target_width = 200
         image = Image.fromarray(img_as_ubyte(image))
-        ctk_image = ctk.CTkImage(light_image=image, dark_image=image, size=image.size)
+        aspect_ratio = image.height / image.width
+        new_height = int(target_width * aspect_ratio)
+        resized_image = image.resize((target_width, new_height), Image.LANCZOS)
+        ctk_image = ctk.CTkImage(light_image=resized_image, dark_image=resized_image, size=resized_image.size)
         label.configure(image=ctk_image, text="")
         label.image = ctk_image
 
-    def run_method1(self):
-        if not self.texture or not self.method_frame.patch_size_entry.get():
-            self.image_output.configure(text="Please load texture, and enter patch size")
-        output = general_method(self.texture, int(self.method_frame.patch_size_entry.get()), None, randomPatch)
+    def run_general_method(self, patch_size, overlap_size=None, alpha=None, method=None):
+        if self.texture.size == 0:
+            self.image_output.configure(text="Please load texture")
+            return
+        if not patch_size:
+            self.image_output.configure(text="Please enter patch size")
+            return
+        if overlap_size is not None and not overlap_size:
+            self.image_output.configure(text="Please enter overlap size")
+            return
+        if alpha is not None and not alpha:
+            self.image_output.configure(text="Please enter alpha")
+            return
+
+        if alpha is not None:
+            if self.target.size == 0:
+                self.image_output.configure(text="Please load target")
+                return
+            self.progressbar.configure(mode="indeterminate")
+            self.progressbar.start()
+            output = transfer(self.texture, self.target, int(patch_size), int(overlap_size), float(alpha))
+            self.progressbar.stop()
+            self.progressbar.configure(mode="determinate")
+            self.progressbar.set(0)
+        else:
+            self.progressbar.configure(mode="indeterminate")
+            self.progressbar.start()
+            output = general_method(self.texture, int(patch_size), int(overlap_size) if overlap_size else None, method)
+            self.progressbar.stop()
+            self.progressbar.configure(mode="determinate")
+            self.progressbar.set(0)
+        
         self.display_image(output, self.image_output)
+
+    def run_method1(self):
+        self.run_general_method(self.method_frame.patch_size_entry.get(), method=randomPatch)
 
     def run_method2(self):
-        if not self.texture or not self.method_frame.patch_size_entry.get() or not self.method_frame.overlap_size_entry.get():
-            self.image_output.configure(text="Please load texture, and enter patch size and overlap size")
-        output = general_method(self.texture, int(self.method2_frame.patch_size_entry.get()), int(self.method2_frame.overlap_size_entry.get()), bestPatchSelection)
-        self.display_image(output, self.image_output)
+        self.run_general_method(self.method_frame.patch_size_entry.get(), self.method_frame.overlap_size_entry.get(), method=bestPatchSelection)
 
     def run_method3(self):
-        if not self.texture or not self.method_frame.patch_size_entry.get() or not self.method_frame.overlap_size_entry.get():
-            self.image_output.configure(text="Please load texture, and enter patch size and overlap size")
-        output = general_method(self.texture, int(self.method3_frame.patch_size_entry.get()), int(self.method3_frame.overlap_size_entry.get()), cutPatchSelection)
-        self.display_image(output, self.image_output)
+        self.run_general_method(self.method_frame.patch_size_entry.get(), self.method_frame.overlap_size_entry.get(), method=cutPatchSelection)
 
     def run_transfer(self):
-        if not self.texture or not self.target or not self.method_frame.patch_size_entry.get() or not self.method_frame.overlap_size_entry.get() or not self.method_frame.alpha_entry.get():
-            self.image_output.configure(text="Please load texture and target, and enter patch size, overlap size and alpha")
-        output = transfer(self.texture, self.target, int(self.method_frame.patch_size_entry.get()), int(self.method_frame.overlap_size_entry.get()), float(self.method_frame.alpha_entry.get()))
-        self.display_image(output, self.image_output)
+        self.run_general_method(self.method_frame.patch_size_entry.get(), self.method_frame.overlap_size_entry.get(), self.method_frame.alpha_entry.get())
 
 if __name__ == "__main__":
     app = TextureApp()

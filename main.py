@@ -1,13 +1,11 @@
 import customtkinter as ctk
-import tkinter as tk
-from PIL import Image, ImageTk
+from PIL import Image
 from tkinter import filedialog
 import numpy as np
 from skimage import io, util, color, img_as_ubyte
-import math, heapq
-import tkinter as tk
+import math, heapq, threading
 
-def randomPatch(texture, patchSize):
+def randomPatch(texture, patchSize, overlapSize=None, output=None, x=None, y=None, i=None, j=None):
     h, w = texture.shape[:2]
     i = np.random.randint(h - patchSize)
     j = np.random.randint(w - patchSize)
@@ -85,7 +83,7 @@ def general_method(texture, patchSize, overlapSize, patchSelectionFunc):
         for j in range(patchW):
             y = i * (patchSize - overlapSize) if overlapSize else i * patchSize
             x = j * (patchSize - overlapSize) if overlapSize else j * patchSize
-            patch = patchSelectionFunc(texture, patchSize)
+            patch = patchSelectionFunc(texture, patchSize, overlapSize, output, x, y, i, j)
             output[y:y+patchSize, x:x+patchSize] = patch
     return output[:5*h, :5*w]
 
@@ -210,8 +208,9 @@ class TextureApp(ctk.CTk):
         self.progressbar.grid(row=7, column=1, pady=(10, 10), sticky="ew")
 
         # Display Image
+        ctk.CTkButton(frame, text="Save Image", command=self.save_output_image).grid(row=8, column=1, pady=10)
         self.image_output = ctk.CTkLabel(frame, text="Output Image", width=200, height=100)
-        self.image_output.grid(row=8, column=1, padx=20, pady=10)
+        self.image_output.grid(row=9, column=1, padx=20, pady=10)
 
         for entry_name, entry in [("patch_size_entry", self.patch_size_entry), ("overlap_size_entry", self.overlap_size_entry), ("alpha_entry", self.alpha_entry)]:
             setattr(scrollable_frame, entry_name, entry)
@@ -307,6 +306,13 @@ class TextureApp(ctk.CTk):
         label.configure(image=ctk_image, text="")
         label.image = ctk_image
 
+    def save_output_image(self):
+        if self.output is not None:
+            file_path = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG files", "*.png"), ("All files", "*.*")])
+            if file_path:
+                image = Image.fromarray(img_as_ubyte(self.output))
+                image.save(file_path)
+
     def run_general_method(self, patch_size, overlap_size=None, alpha=None, method=None):
         if self.texture.size == 0:
             self.image_output.configure(text="Please load texture")
@@ -321,25 +327,31 @@ class TextureApp(ctk.CTk):
             self.image_output.configure(text="Please enter alpha")
             return
 
-        if alpha is not None:
+        def run_transfer():
             if self.target.size == 0:
                 self.image_output.configure(text="Please load target")
                 return
             self.progressbar.configure(mode="indeterminate")
             self.progressbar.start()
-            output = transfer(self.texture, self.target, int(patch_size), int(overlap_size), float(alpha))
+            self.output = transfer(self.texture, self.target, int(patch_size), int(overlap_size), float(alpha))
             self.progressbar.stop()
             self.progressbar.configure(mode="determinate")
             self.progressbar.set(0)
-        else:
+            self.display_image(self.output, self.image_output)
+
+        def run_general():
             self.progressbar.configure(mode="indeterminate")
             self.progressbar.start()
-            output = general_method(self.texture, int(patch_size), int(overlap_size) if overlap_size else None, method)
+            self.output = general_method(self.texture, int(patch_size), int(overlap_size) if overlap_size else None, method)
             self.progressbar.stop()
             self.progressbar.configure(mode="determinate")
             self.progressbar.set(0)
-        
-        self.display_image(output, self.image_output)
+            self.display_image(self.output, self.image_output)
+
+        if alpha is not None:
+            threading.Thread(target=run_transfer).start()
+        else:
+            threading.Thread(target=run_general).start()
 
     def run_method1(self):
         self.run_general_method(self.method_frame.patch_size_entry.get(), method=randomPatch)

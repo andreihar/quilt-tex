@@ -119,11 +119,11 @@ def transfer(texture, target, patchSize, overlap, alpha):
             output[y:y+patchSize, x:x+patchSize] = patch
     return output
 
-class TextureApp(ctk.CTk):
+class QuiltTexApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Texture Synthesis and Transfer")
+        self.title("QuiltTex")
         self.geometry("900x600")
 
         self.texture = None
@@ -134,16 +134,15 @@ class TextureApp(ctk.CTk):
         self.grid_columnconfigure(1, weight=1)
 
         # load images with light and dark mode image
-        self.logo_image = ctk.CTkImage(Image.open("documentation_images/CustomTkinter_logo_dark.png"), size=(26, 26))
+        self.logo_image = ctk.CTkImage(Image.open("logo.png"), size=(34, 26))
 
         # create navigation frame
         self.navigation_frame = ctk.CTkFrame(self, corner_radius=0)
         self.navigation_frame.grid(row=0, column=0, sticky="nsew")
-        self.navigation_frame.grid_rowconfigure(5, weight=1)  # Adjust row configuration
+        self.navigation_frame.grid_rowconfigure(5, weight=1) 
 
         # Add other elements below the tab view
-        self.navigation_frame_label = ctk.CTkLabel(self.navigation_frame, text="  Texture Transfer", image=self.logo_image,
-                                                            compound="left", font=ctk.CTkFont(size=15, weight="bold"))
+        self.navigation_frame_label = ctk.CTkLabel(self.navigation_frame, text="  QuiltTex", image=self.logo_image, compound="left", font=ctk.CTkFont(size=20, weight="bold", family="Helvetica"))
         self.navigation_frame_label.grid(row=0, column=0, padx=20, pady=20)
 
         # Create tab buttons frame
@@ -153,8 +152,12 @@ class TextureApp(ctk.CTk):
         self.seg_button.set("Synthesis")
 
         # Add method buttons
-        for i, (ref, command) in enumerate({"method1_button": self.method1_button_event,"method2_button": self.method2_button_event,"method3_button": self.method3_button_event}.items(), start=1):
-            button = ctk.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text=f"Method {i}", fg_color="transparent",text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"), anchor="w", command=command)
+        for i, (ref, (name, command)) in enumerate({
+            "method1_button": ("Random Patch", self.method1_button_event),
+            "method2_button": ("Overlap-Constrained Patch", self.method2_button_event),
+            "method3_button": ("Minimum Error Boundary Cut", self.method3_button_event)
+        }.items(), start=1):
+            button = ctk.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text=name, fg_color="transparent",text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"), anchor="w", command=command)
             button.grid(row=i + 1, column=0, sticky="ew")
             setattr(self, ref, button)
 
@@ -225,16 +228,7 @@ class TextureApp(ctk.CTk):
         for i, button in enumerate(buttons, start=1):
             button.configure(fg_color=("gray75", "gray25") if f"method{i}" == name else "transparent")
 
-        # Hide all widgets initially
-        all_widgets = [
-            self.image_target,
-            self.load_target_button,
-            self.overlap_size_label,
-            self.overlap_size_entry,
-            self.alpha_label,
-            self.alpha_entry
-        ]
-        for widget in all_widgets:
+        for widget in [self.image_target, self.load_target_button, self.overlap_size_label, self.overlap_size_entry, self.alpha_label, self.alpha_entry]:
             widget.grid_forget()
 
         method2_widgets = [
@@ -272,10 +266,8 @@ class TextureApp(ctk.CTk):
     
     def method1_button_event(self):
         self.select_frame_by_name("method1")
-
     def method2_button_event(self):
         self.select_frame_by_name("method2")
-
     def method3_button_event(self):
         self.select_frame_by_name("method3")
 
@@ -297,11 +289,10 @@ class TextureApp(ctk.CTk):
         self.display_image(self.target, self.image_target)
 
     def display_image(self, image, label):
-        target_width = 200
         image = Image.fromarray(img_as_ubyte(image))
         aspect_ratio = image.height / image.width
-        new_height = int(target_width * aspect_ratio)
-        resized_image = image.resize((target_width, new_height), Image.LANCZOS)
+        new_height = int(200 * aspect_ratio)
+        resized_image = image.resize((200, new_height), Image.LANCZOS)
         ctk_image = ctk.CTkImage(light_image=resized_image, dark_image=resized_image, size=resized_image.size)
         label.configure(image=ctk_image, text="")
         label.image = ctk_image
@@ -314,7 +305,7 @@ class TextureApp(ctk.CTk):
                 image.save(file_path)
 
     def run_general_method(self, patch_size, overlap_size=None, alpha=None, method=None):
-        if self.texture.size == 0:
+        if self.texture is None or self.texture.size == 0:
             self.image_output.configure(text="Please load texture")
             return
         if not patch_size:
@@ -328,7 +319,7 @@ class TextureApp(ctk.CTk):
             return
 
         def run_transfer():
-            if self.target.size == 0:
+            if self.target is None or self.target.size == 0:
                 self.image_output.configure(text="Please load target")
                 return
             self.progressbar.configure(mode="indeterminate")
@@ -366,5 +357,5 @@ class TextureApp(ctk.CTk):
         self.run_general_method(self.method_frame.patch_size_entry.get(), self.method_frame.overlap_size_entry.get(), self.method_frame.alpha_entry.get())
 
 if __name__ == "__main__":
-    app = TextureApp()
+    app = QuiltTexApp()
     app.mainloop()

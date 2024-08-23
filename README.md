@@ -104,6 +104,13 @@ The texture synthesis process is based on the work by Efros and Freeman titled [
 
 These texture synthesis approaches can be applied to various types of textures, whether structured (like bricks or tiles) or stochastic (like grass or sand). The choice of method and parameters, such as patch size and overlap width, depends on the specific characteristics of the input texture. For instance, highly structured textures may benefit more from Method 3 due to its ability to handle complex patterns with minimal visible seams.
 
+Base textures chosen for comparison:
+
+<p align="center">
+<img src="data/textures/apples.png" alt="Apples" height="200">
+<img src="data/textures/weave.jpg" alt="Weave" height="200">
+</p>
+
 #### Random Patch Selection
 
 This is the simplest approach, where patches are randomly selected from the input texture and placed into the new image. Because the patches are chosen randomly without considering the overlap with adjacent patches, noticeable edges or seams are likely to appear in the synthesised texture. This can make the final image look disjointed or artificial.

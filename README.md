@@ -107,8 +107,8 @@ These texture synthesis approaches can be applied to various types of textures, 
 Base textures chosen for comparison:
 
 <p align="center">
-<img src="data/textures/apples.png" alt="Apples" height="200">
-<img src="data/textures/weave.jpg" alt="Weave" height="200">
+<img src="data/textures/apples.png" alt="Apples" width="300">
+<img src="data/textures/weave.jpg" alt="Weave" width="200">
 </p>
 
 #### Random Patch Selection
@@ -116,8 +116,8 @@ Base textures chosen for comparison:
 This is the simplest approach, where patches are randomly selected from the input texture and placed into the new image. Because the patches are chosen randomly without considering the overlap with adjacent patches, noticeable edges or seams are likely to appear in the synthesised texture. This can make the final image look disjointed or artificial.
 
 <p align="center">
-<img src="readme/apples_1.jpg" alt="Apples Method 1" height="200">
-<img src="readme/weave_1.jpg" alt="Weave Method 1" height="200">
+<img src="readme/apples_1.jpg" alt="Apples Method 1" width="300">
+<img src="readme/weave_1.jpg" alt="Weave Method 1" width="200">
 </p>
 
 #### Overlap-Constrained Patch Selection
@@ -127,8 +127,8 @@ In this method, the algorithm selects patches that best match the existing conte
 This method reduces the likelihood of visible seams by ensuring that the overlapping regions of adjacent patches are more closely matched. The slight randomness helps avoid the problem of repetitive patterns, creating a more natural texture.
 
 <p align="center">
-<img src="readme/apples_2.jpg" alt="Apples Method 2" height="200">
-<img src="readme/weave_2.jpg" alt="Weave Method 2" height="200">
+<img src="readme/apples_2.jpg" alt="Apples Method 2" width="300">
+<img src="readme/weave_2.jpg" alt="Weave Method 2" width="200">
 </p>
 
 #### Minimum Error Boundary Cut
@@ -138,8 +138,8 @@ This method refines the overlap between patches even further by calculating the 
 By allowing the patches to have irregular, "ragged" edges, this method effectively minimises visible seams, even for highly structured textures. The dynamic programming approach used to find the minimum error cut ensures that the transition between patches is as seamless as possible.
 
 <p align="center">
-<img src="readme/apples_3.jpg" alt="Apples Method 3" height="200">
-<img src="readme/weave_3.jpg" alt="Weave Method 3" height="200">
+<img src="readme/apples_3.jpg" alt="Apples Method 3" width="300">
+<img src="readme/weave_3.jpg" alt="Weave Method 3" width="200">
 </p>
 
 ### Texture Transfer
@@ -156,8 +156,8 @@ To balance these constraints, an error metric combines texture matching with str
 This technique enables the creation of striking visual effects, like rendering a photograph with a different material's texture, producing an image that is both visually rich and true to the original structure.
 
 <p align="center">
-<img src="readme/marilyn_monroe.jpg" alt="Marilyn Monroe with Rice texture" height="400">
-<img src="readme/abraham_lincoln.jpg" alt="Abraham Lincoln with Toast texture" height="400">
+<img src="readme/marilyn_monroe.jpg" alt="Marilyn Monroe with Rice texture" width="285">
+<img src="readme/abraham_lincoln.jpg" alt="Abraham Lincoln with Toast texture" width="300">
 </p>
 
 ### Tkinter App
@@ -165,7 +165,7 @@ This technique enables the creation of striking visual effects, like rendering a
 The QuiltTex project includes a CustomTkinter-based application that allows users to apply and experiment with the implemented texture synthesis and transfer methods. The app provides an intuitive interface for loading texture samples and target images, adjusting parameters, and viewing results in real-time. Users can also save the generated images directly through the app, making it a practical tool for texture manipulation and experimentation.
 
 <p align="center">
-<img src="readme/app.jpg" alt="Tkinter App" height="450">
+<img src="readme/app.jpg" alt="Tkinter App" width="600">
 </p>
 
 
